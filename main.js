@@ -6,6 +6,11 @@ if (!USER_NAME) {
     process.exit(1);
 }
 
+/**
+ * Customize this:
+ */
+var FLATTR_USER = 'Astro';
+
 var spawn = require('child_process').spawn;
 var async = require('async');
 var ltx = require('ltx');
@@ -91,7 +96,26 @@ function itemsToAtom(items) {
 			href: item.thumbnail.sqDefault }).up().
 	    c('logo').t(item.thumbnail.hqDefault).up().
 	    c('link', { rel: 'enclosure',
-			href: BASE_PATH + encodeURIComponent(item.fileName) }).up();
+			href: BASE_PATH + encodeURIComponent(item.fileName) }).up().
+	    c('link', { rel: 'payment',
+			type: MIME_HTML,
+			href: makeFlattrLink(item) }).up();
     });
     return feed;
 }
+
+function makeFlattrLink(item) {
+    var args = {
+	user_id: FLATTR_USER,
+	url: item.player.default,
+	title: item.title,
+	description: item.description,
+	tags: item.tags.join(","),
+	category: 'video'
+    };
+    return "https://flattr.com/submit/auto?" +
+	Object.keys(args).map(function(k) {
+	    return k + "=" + encodeURIComponent(args[k]);
+	}).join("&");
+}
+
