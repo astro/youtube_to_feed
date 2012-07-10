@@ -2,9 +2,8 @@ Get dependencies
 ============
 
 ```
-aptitude install -t wheezy cclive
-
 npm i .
+aptitude install -t wheezy cclive
 ```
 
 Usage
@@ -14,6 +13,6 @@ Usage
 node main.js astro1138 http://example.com/youtube-astro1138/ > feed.xml
 ```
 
-Now, make feed.xml and the downloaded files available under the base URL mentioned above.
+Now, make feed.xml and the downloaded files available at the base URL mentioned above.
 
 Edit the source code to change your Flattr user name. :-)
