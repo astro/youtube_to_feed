@@ -89,6 +89,7 @@ function itemsToAtom(items) {
 	    c('link', { rel: 'logo',
 			type: MIME_JPEG,
 			href: item.thumbnail.sqDefault }).up().
+	    c('logo').t(item.thumbnail.hqDefault).up().
 	    c('link', { rel: 'enclosure',
 			href: BASE_PATH + encodeURIComponent(item.fileName) }).up();
     });
