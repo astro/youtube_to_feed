@@ -10,9 +10,10 @@ Usage
 =====
 
 ```
-node main.js astro1138 http://example.com/youtube-astro1138/ > feed.xml
+node main.js
 ```
 
-Now, make feed.xml and the downloaded files available at the base URL mentioned above.
+Read the instructions.
 
-Edit the source code to change your Flattr user name. :-)
+Afterwards, make feed.xml and the downloaded files available at the
+base URL mentioned above.
