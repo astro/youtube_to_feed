@@ -1,41 +1,57 @@
-var USER_NAME = process.argv[2];
-var BASE_PATH = process.argv[3] || "";
-
-if (!USER_NAME) {
-    console.error(process.argv[0] + " <user name> [base path]");
+if (process.argv.length < 4) {
+    console.error("Usage: " + process.argv[0] +
+		  " " + process.argv[1] +
+		  " <youtube | vimeo> <user name> [flattr user name] [output feed base path]");
     process.exit(1);
 }
-
-/**
- * Customize this:
- */
-var FLATTR_USER = 'Astro';
+var SERVICE = process.argv[2];
+var USER_NAME = process.argv[3];
+var FLATTR_USER = process.argv[4];
+var BASE_PATH = process.argv[5] || "";
 
 var spawn = require('child_process').spawn;
 var async = require('async');
 var ltx = require('ltx');
 var YF = require('youtube-feeds');
+var Vimeo = require('n-vimeo');
 
-YF.feeds.videos({ author: USER_NAME }, function(feeds) {
-    async.mapSeries(feeds.items, function(item, cb) {
-	downloadVideo(item.player.default, function(err, name) {
-	    if (err) {
-		cb(err);
-	    } else {
-		item.fileName = name;
-		cb(null, item);
-	    }
-	});
-    }, function(err, items) {
-	if (!err) {
-	    process.stdout.write(itemsToAtom(items).toString());
-	    process.stdout.write("\n");
-	} else {
-	    console.error(err);
-	}
+function outputFeed(err, items) {
+    if (!err) {
+	process.stdout.write(itemsToAtom(items).toString());
+	process.stdout.write("\n");
+    } else {
+	console.error(err);
+    }
+}
+
+if (SERVICE == 'youtube') {
+    YF.feeds.videos({ author: USER_NAME }, function(feeds) {
+	async.mapSeries(feeds.items, function(item, cb) {
+	    downloadVideo(item.player.default, function(err, name) {
+		if (err) {
+		    cb(err);
+		} else {
+		    item.fileName = name;
+		    cb(null, item);
+		}
+	    });
+	}, outputFeed);
     });
-});
-
+} else if (SERVICE == 'vimeo') {
+    Vimeo.user(USER_NAME, 'videos', function(err, data) {
+	async.mapSeries(data.body, function(item, cb) {
+	    downloadVideo(item.url, function(err, name) {
+		if (err) {
+		    cb(err);
+		} else {
+		    item.fileName = name;
+		    cb(null, item);
+		}
+	    });
+	}, outputFeed);
+    });
+} else
+    throw "Unknown service type " + SERVICE;
 
 
 function exec(prog, args, cb) {
@@ -74,8 +90,13 @@ var MIME_HTML = 'text/html';
 var MIME_JPEG = 'image/jpeg';
 
 function itemsToAtom(items) {
+    var title = SERVICE == 'youtube' ?
+	    "YouTube: " + USER_NAME :
+	    SERVICE == 'vimeo' ?
+	    "Vimeo: " + USER_NAME :
+	    USER_NAME;
     var feed = new ltx.Element('feed', { xmlns: NS_ATOM }).
-	c('title').t("YouTube: " + USER_NAME).up().
+	c('title').t(title).up().
 	c('link', { rel: 'alternate',
 		    type: MIME_HTML,
 		    href: "http://youtube.com/user/" + USER_NAME }).up();
@@ -83,23 +104,29 @@ function itemsToAtom(items) {
 	if (!item.fileName)
 	    return;
 
-	feed.c('entry').
+	var entry = feed.c('entry');
+	var published = item.uploaded || item.upload_date.replace(" ", "T");
+	var updated = item.updated || published;
+	entry.
 	    c('title').t(item.title).up().
-	    c('published').t(item.uploaded).up().
-	    c('updated').t(item.updated).up().
-	    c('summary').t(item.description).up().
+	    c('published').t(published).up().
+	    c('updated').t(updated).up().
+	    c('summary', { type: (SERVICE == 'vimeo' ? 'html' : 'text' }).
+	        t(item.description).up().
 	    c('link', { rel: 'alternate',
 			type: MIME_HTML,
-			href: item.player.default }).up().
+			href: (item.player && item.player.default) || item.url }).up().
 	    c('link', { rel: 'logo',
 			type: MIME_JPEG,
-			href: item.thumbnail.sqDefault }).up().
-	    c('logo').t(item.thumbnail.hqDefault).up().
+			href: (item.thumbnail && item.thumbnail.sqDefault) || item.thumbnail_small }).up().
+	    c('logo').t((item.thumbnail && item.thumbnail.hqDefault) || item.thumbnail_large).up().
 	    c('link', { rel: 'enclosure',
-			href: BASE_PATH + encodeURIComponent(item.fileName) }).up().
-	    c('link', { rel: 'payment',
-			type: MIME_HTML,
-			href: makeFlattrLink(item) }).up();
+			href: BASE_PATH + encodeURIComponent(item.fileName) });
+	    if (FLATTR_USER)
+		entry.
+		    c('link', { rel: 'payment',
+				type: MIME_HTML,
+				href: makeFlattrLink(item) });
     });
     return feed;
 }
